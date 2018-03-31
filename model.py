@@ -61,35 +61,27 @@ y_train = np.array(augmented_steer_measurements)
 
 
 # lambdas
-def normalize(x):
-    return (x - 128.0) / 128.0
-
-
 def min_max(x):
     x_min = K.min(x, axis=[1, 2, 3], keepdims=True)
     x_max = K.max(x, axis=[1, 2, 3], keepdims=True)
     return (x - x_min) / (x_max - x_min) - 0.5
 
 
-def yuv_conversion(x):
-    import tensorflow as tf
-    return tf.image.rgb_to_yuv(x)
-
-
 # model
 model = Sequential()
-# model.add(Lambda(normalize, input_shape=(160, 320, 3)))
 model.add(Cropping2D(cropping=((70, 25), (0, 0)), input_shape=(160, 320, 3)))
-# model.add(Lambda(yuv_conversion))
 model.add(Lambda(min_max))
-model.add(Convolution2D(6, (5, 5), activation='relu'))
-model.add(MaxPooling2D())
-model.add(Convolution2D(6, (5, 5), activation='relu'))
-model.add(MaxPooling2D())
+model.add(Convolution2D(24, (5, 5), strides=(2, 2), activation='relu'))
+model.add(Convolution2D(36, (5, 5), strides=(2, 2), activation='relu'))
+model.add(Convolution2D(48, (5, 5), strides=(2, 2), activation='relu'))
+model.add(Convolution2D(64, (3, 3), activation='relu'))
+model.add(Convolution2D(64, (3, 3), activation='relu'))
 model.add(Flatten())
-model.add(Dense(128, activation="relu"))
+model.add(Dense(100))
 model.add(Dropout(0.5))
-model.add(Dense(84, activation="relu"))
+model.add(Dense(50))
+model.add(Dropout(0.5))
+model.add(Dense(10))
 model.add(Dropout(0.5))
 model.add(Dense(1))
 
