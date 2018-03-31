@@ -2,8 +2,9 @@ import csv
 import cv2
 import sys
 import numpy as np
+from keras.callbacks import ModelCheckpoint
 from keras.models import Sequential
-from keras.layers import Flatten, Dense, Lambda, Dropout, Cropping2D
+from keras.layers import Flatten, Dense, Lambda, Dropout, Cropping2D, AveragePooling2D
 from keras.layers.convolutional import Convolution2D
 from keras.layers.pooling import MaxPooling2D
 from keras import backend as K
@@ -70,26 +71,29 @@ def min_max(x):
 # model
 model = Sequential()
 model.add(Cropping2D(cropping=((70, 25), (0, 0)), input_shape=(160, 320, 3)))
+model.add(AveragePooling2D(pool_size=(1, 2)))
 model.add(Lambda(min_max))
-model.add(Convolution2D(24, (5, 5), strides=(2, 2), activation='relu'))
-model.add(Convolution2D(36, (5, 5), strides=(2, 2), activation='relu'))
+model.add(Convolution2D(24, (10, 10), strides=(2, 2), activation='relu'))
+model.add(Convolution2D(36, (10, 10), strides=(2, 2), activation='relu'))
 model.add(Convolution2D(48, (5, 5), strides=(2, 2), activation='relu'))
 model.add(Convolution2D(64, (3, 3), activation='relu'))
 model.add(Convolution2D(64, (3, 3), activation='relu'))
 model.add(Flatten())
-model.add(Dense(100))
+model.add(Dense(70))
 model.add(Dropout(0.5))
-model.add(Dense(50))
+model.add(Dense(30))
 model.add(Dropout(0.5))
 model.add(Dense(10))
 model.add(Dropout(0.5))
 model.add(Dense(1))
 
-model.compile(loss='mse', optimizer='adam')
-history_object = model.fit(X_train, y_train, validation_split=0.2, shuffle=True, epochs=20,
-                           verbose=2)  # 1 gives more data than 2
+checkpoint = ModelCheckpoint(output_path + 'model.h5', verbose=1, monitor='val_loss', save_best_only=True, mode='auto')
 
-model.save(output_path + 'model.h5')
+model.compile(loss='mse', optimizer='adam')
+history_object = model.fit(X_train, y_train, validation_split=0.2, shuffle=True, epochs=50,
+                           callbacks=[checkpoint], verbose=2)  # 1 gives more data than 2
+
+# model.save(output_path + 'model.h5')
 
 # plot loss
 print(history_object.history.keys())
@@ -99,5 +103,5 @@ plt.title('model mean squared error loss')
 plt.ylabel('mean squared error loss')
 plt.xlabel('epoch')
 plt.legend(['training set', 'validation set'], loc='upper right')
-plt.show()
+# plt.show()
 plt.savefig(output_path + 'loss.png')
