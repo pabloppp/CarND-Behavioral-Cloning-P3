@@ -7,6 +7,7 @@ from keras.layers import Flatten, Dense, Lambda, Dropout, Cropping2D
 from keras.layers.convolutional import Convolution2D
 from keras.layers.pooling import MaxPooling2D
 from keras import backend as K
+import matplotlib.pyplot as plt
 
 # load data
 print("Loading data...")
@@ -21,7 +22,7 @@ if len(sys.argv) > 2:
 else:
     output_path = "./"
 
-data_path = base_data_path + 'custom_centered/'
+data_path = base_data_path + 'custom_simple_base/'
 
 lines = []
 with open(data_path + 'driving_log.csv') as csv_file:
@@ -61,7 +62,7 @@ y_train = np.array(augmented_steer_measurements)
 
 # lambdas
 def normalize(x):
-    return (x - 128) / 128
+    return (x - 128.0) / 128.0
 
 
 def min_max(x):
@@ -77,10 +78,10 @@ def yuv_conversion(x):
 
 # model
 model = Sequential()
-model.add(Lambda(lambda x: x / 255.0 - 0.5, input_shape=(160, 320, 3)))
-# model.add(Lambda(yuv_conversion, input_shape=(160, 320, 3)))
-# model.add(Lambda(min_max, input_shape=(160, 320, 3)))
-model.add(Cropping2D(cropping=((70, 25), (0, 0))))
+# model.add(Lambda(normalize, input_shape=(160, 320, 3)))
+model.add(Cropping2D(cropping=((70, 25), (0, 0)), input_shape=(160, 320, 3)))
+# model.add(Lambda(yuv_conversion))
+model.add(Lambda(min_max))
 model.add(Convolution2D(6, (5, 5), activation='relu'))
 model.add(MaxPooling2D())
 model.add(Convolution2D(6, (5, 5), activation='relu'))
@@ -93,6 +94,18 @@ model.add(Dropout(0.5))
 model.add(Dense(1))
 
 model.compile(loss='mse', optimizer='adam')
-model.fit(X_train, y_train, validation_split=0.2, shuffle=True, epochs=20)
+history_object = model.fit(X_train, y_train, validation_split=0.2, shuffle=True, epochs=20,
+                           verbose=2)  # 1 gives more data than 2
 
 model.save(output_path + 'model.h5')
+
+# plot loss
+print(history_object.history.keys())
+plt.plot(history_object.history['loss'])
+plt.plot(history_object.history['val_loss'])
+plt.title('model mean squared error loss')
+plt.ylabel('mean squared error loss')
+plt.xlabel('epoch')
+plt.legend(['training set', 'validation set'], loc='upper right')
+plt.show()
+plt.savefig(output_path + 'loss.png')
