@@ -39,6 +39,7 @@ for line in lines:
         filename = image_source_path.split('/')[-1]
         current_path = data_path + 'IMG/' + filename
         image = cv2.imread(current_path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         images.append(image)
 
     steer_correction = 0.18
@@ -70,21 +71,21 @@ def min_max(x):
 
 # model
 model = Sequential()
-model.add(Cropping2D(cropping=((70, 25), (0, 0)), input_shape=(160, 320, 3)))
+model.add(Cropping2D(cropping=((65, 25), (0, 0)), input_shape=(160, 320, 3)))
 model.add(AveragePooling2D(pool_size=(1, 2)))
 model.add(Lambda(min_max))
-model.add(Convolution2D(24, (10, 10), strides=(2, 2), activation='relu'))
-model.add(Convolution2D(36, (10, 10), strides=(2, 2), activation='relu'))
+model.add(Convolution2D(24, (8, 8), strides=(2, 2), activation='relu'))
+model.add(Convolution2D(36, (8, 8), strides=(2, 2), activation='relu'))
 model.add(Convolution2D(48, (5, 5), strides=(2, 2), activation='relu'))
 model.add(Convolution2D(64, (3, 3), activation='relu'))
 model.add(Convolution2D(64, (3, 3), activation='relu'))
 model.add(Flatten())
+model.add(Dropout(0.5))
 model.add(Dense(70))
 model.add(Dropout(0.5))
 model.add(Dense(30))
 model.add(Dropout(0.5))
 model.add(Dense(10))
-model.add(Dropout(0.5))
 model.add(Dense(1))
 
 checkpoint = ModelCheckpoint(output_path + 'model.h5', verbose=1, monitor='val_loss', save_best_only=True, mode='auto')
