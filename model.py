@@ -1,14 +1,28 @@
 import csv
 import cv2
+import sys
 import numpy as np
 from keras.models import Sequential
-from keras.layers import Flatten, Dense, Lambda
+from keras.layers import Flatten, Dense, Lambda, Dropout
 from keras.layers.convolutional import Convolution2D
 from keras.layers.pooling import MaxPooling2D
 from keras import backend as K
 
 # load data
-data_path = '../data/custom_data/'
+print("Loading data...")
+
+if len(sys.argv) > 1:
+    base_data_path = sys.argv[1]
+else:
+    base_data_path = "../data/"
+
+if len(sys.argv) > 2:
+    output_path = sys.argv[2]
+else:
+    output_path = "./"
+
+data_path = base_data_path + 'custom_centered/'
+
 lines = []
 with open(data_path + 'driving_log.csv') as csv_file:
     reader = csv.reader(csv_file)
@@ -16,16 +30,38 @@ with open(data_path + 'driving_log.csv') as csv_file:
         lines.append(line)
 
 images = []
-stir_measurements = []
+steer_measurements = []
 for line in lines:
-    image_source_path = line[0]
-    filename = image_source_path.split('/')[-1]
-    current_path = data_path + 'IMG/' + filename
-    image = cv2.imread(current_path)
-    images.append(image)
+    for i in range(0, 3):
+        image_source_path = line[i]
+        filename = image_source_path.split('/')[-1]
+        current_path = data_path + 'IMG/' + filename
+        image = cv2.imread(current_path)
+        images.append(image)
 
-    stir_measurement = float(line[3])
-    stir_measurements.append(stir_measurement)
+    steer_correction = 0.2
+    steer_measurement = float(line[3])
+    steer_measurements.append(steer_measurement)
+    steer_measurements.append(steer_measurement + steer_correction)
+    steer_measurements.append(steer_measurement - steer_correction)
+
+# data augmentation
+print("Augmenting data...")
+augmented_images, augmented_steer_measurements = [], []
+
+for image, steer_measurement in zip(images, steer_measurements):
+    augmented_images.append(image)
+    augmented_steer_measurements.append(steer_measurement)
+    augmented_images.append(np.fliplr(image))
+    augmented_steer_measurements.append(-steer_measurement)
+
+X_train = np.array(augmented_images)
+y_train = np.array(augmented_steer_measurements)
+
+
+# lambdas
+def normalize(x):
+    return (x - 128) / 128
 
 
 def min_max(x):
@@ -40,23 +76,21 @@ def yuv_conversion(x):
 
 
 # model
-
-X_train = np.array(images)
-y_train = np.array(stir_measurements)
-
 model = Sequential()
-model.add(Lambda(yuv_conversion, input_shape=(160, 320, 3)))
-model.add(Lambda(min_max))
+# model.add(Lambda(yuv_conversion, input_shape=(160, 320, 3)))
+model.add(Lambda(min_max, input_shape=(160, 320, 3)))
 model.add(Convolution2D(6, (5, 5), activation='relu'))
 model.add(MaxPooling2D())
 model.add(Convolution2D(6, (5, 5), activation='relu'))
 model.add(MaxPooling2D())
 model.add(Flatten())
 model.add(Dense(128, activation="relu"))
+model.add(Dropout(0.5))
 model.add(Dense(84, activation="relu"))
+model.add(Dropout(0.5))
 model.add(Dense(1))
 
 model.compile(loss='mse', optimizer='adam')
 model.fit(X_train, y_train, validation_split=0.2, shuffle=True, epochs=20)
 
-model.save('model.h5')
+model.save(output_path + 'model.h5')
