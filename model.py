@@ -3,7 +3,7 @@ import cv2
 import sys
 import numpy as np
 from keras.models import Sequential
-from keras.layers import Flatten, Dense, Lambda, Dropout
+from keras.layers import Flatten, Dense, Lambda, Dropout, Cropping2D
 from keras.layers.convolutional import Convolution2D
 from keras.layers.pooling import MaxPooling2D
 from keras import backend as K
@@ -39,7 +39,7 @@ for line in lines:
         image = cv2.imread(current_path)
         images.append(image)
 
-    steer_correction = 0.2
+    steer_correction = 0.18
     steer_measurement = float(line[3])
     steer_measurements.append(steer_measurement)
     steer_measurements.append(steer_measurement + steer_correction)
@@ -77,8 +77,10 @@ def yuv_conversion(x):
 
 # model
 model = Sequential()
+model.add(Lambda(lambda x: x / 255.0 - 0.5, input_shape=(160, 320, 3)))
 # model.add(Lambda(yuv_conversion, input_shape=(160, 320, 3)))
-model.add(Lambda(min_max, input_shape=(160, 320, 3)))
+# model.add(Lambda(min_max, input_shape=(160, 320, 3)))
+model.add(Cropping2D(cropping=((70, 25), (0, 0))))
 model.add(Convolution2D(6, (5, 5), activation='relu'))
 model.add(MaxPooling2D())
 model.add(Convolution2D(6, (5, 5), activation='relu'))
