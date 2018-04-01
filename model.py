@@ -91,7 +91,7 @@ model.add(Dense(1))
 checkpoint = ModelCheckpoint(output_path + 'model.h5', verbose=1, monitor='val_loss', save_best_only=True, mode='auto')
 
 model.compile(loss='mse', optimizer='adam')
-history_object = model.fit(X_train, y_train, validation_split=0.2, shuffle=True, epochs=50,
+history_object = model.fit(X_train, y_train, validation_split=0.2, shuffle=True, epochs=30,
                            callbacks=[checkpoint], verbose=2)  # 1 gives more data than 2
 
 # model.save(output_path + 'model.h5')
