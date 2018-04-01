@@ -1,13 +1,20 @@
 import csv
+import random
+
 import cv2
 import sys
+import matplotlib
 import numpy as np
+import sklearn
 from keras.callbacks import ModelCheckpoint
 from keras.models import Sequential
 from keras.layers import Flatten, Dense, Lambda, Dropout, Cropping2D, AveragePooling2D
 from keras.layers.convolutional import Convolution2D
 from keras.layers.pooling import MaxPooling2D
 from keras import backend as K
+from sklearn.model_selection import train_test_split
+
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 # load data
@@ -31,35 +38,50 @@ with open(data_path + 'driving_log.csv') as csv_file:
     for line in reader:
         lines.append(line)
 
-images = []
-steer_measurements = []
-for line in lines:
-    for i in range(0, 3):
-        image_source_path = line[i]
-        filename = image_source_path.split('/')[-1]
-        current_path = data_path + 'IMG/' + filename
-        image = cv2.imread(current_path)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        images.append(image)
+train_samples, validation_samples = train_test_split(lines, test_size=0.2)
+batch_size = 32
 
-    steer_correction = 0.18
-    steer_measurement = float(line[3])
-    steer_measurements.append(steer_measurement)
-    steer_measurements.append(steer_measurement + steer_correction)
-    steer_measurements.append(steer_measurement - steer_correction)
 
-# data augmentation
-print("Augmenting data...")
-augmented_images, augmented_steer_measurements = [], []
+def generator(samples, batch_size=32):
+    num_samples = len(samples)
+    while 1:
+        random.shuffle(samples)
+        for offset in range(0, num_samples, batch_size):
+            batch_samples = samples[offset:offset + batch_size]
 
-for image, steer_measurement in zip(images, steer_measurements):
-    augmented_images.append(image)
-    augmented_steer_measurements.append(steer_measurement)
-    augmented_images.append(np.fliplr(image))
-    augmented_steer_measurements.append(-steer_measurement)
+            images = []
+            steer_measurements = []
 
-X_train = np.array(augmented_images)
-y_train = np.array(augmented_steer_measurements)
+            for line in batch_samples:
+                for i in range(0, 3):
+                    image_source_path = line[i]
+                    filename = image_source_path.split('/')[-1]
+                    current_path = data_path + 'IMG/' + filename
+                    image = cv2.imread(current_path)
+                    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                    images.append(image)
+
+                steer_correction = 0.18
+                steer_measurement = float(line[3])
+                steer_measurements.append(steer_measurement)
+                steer_measurements.append(steer_measurement + steer_correction)
+                steer_measurements.append(steer_measurement - steer_correction)
+
+            # data augmentation
+            augmented_images, augmented_steer_measurements = [], []
+            for image, steer_measurement in zip(images, steer_measurements):
+                augmented_images.append(image)
+                augmented_steer_measurements.append(steer_measurement)
+                augmented_images.append(np.fliplr(image))
+                augmented_steer_measurements.append(-steer_measurement)
+
+            X_train = np.array(augmented_images)
+            y_train = np.array(augmented_steer_measurements)
+            yield sklearn.utils.shuffle(X_train, y_train)
+
+
+train_generator = generator(train_samples, batch_size=batch_size)
+validation_generator = generator(validation_samples, batch_size=batch_size)
 
 
 # lambdas
@@ -91,8 +113,10 @@ model.add(Dense(1))
 checkpoint = ModelCheckpoint(output_path + 'model.h5', verbose=1, monitor='val_loss', save_best_only=True, mode='auto')
 
 model.compile(loss='mse', optimizer='adam')
-history_object = model.fit(X_train, y_train, validation_split=0.2, shuffle=True, epochs=30,
-                           callbacks=[checkpoint], verbose=2)  # 1 gives more data than 2
+history_object = model.fit_generator(train_generator, steps_per_epoch=2 * len(train_samples) / batch_size,
+                                     validation_data=validation_generator,
+                                     validation_steps=2 * len(validation_samples) / batch_size,
+                                     epochs=30, callbacks=[checkpoint], verbose=2)  # 1 gives more data than 2
 
 # model.save(output_path + 'model.h5')
 
