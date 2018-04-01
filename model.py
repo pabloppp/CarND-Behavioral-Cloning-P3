@@ -113,9 +113,9 @@ model.add(Dense(1))
 checkpoint = ModelCheckpoint(output_path + 'model.h5', verbose=1, monitor='val_loss', save_best_only=True, mode='auto')
 
 model.compile(loss='mse', optimizer='adam')
-history_object = model.fit_generator(train_generator, steps_per_epoch=2 * len(train_samples) / batch_size,
+history_object = model.fit_generator(train_generator, steps_per_epoch=6 * len(train_samples) / batch_size,
                                      validation_data=validation_generator,
-                                     validation_steps=2 * len(validation_samples) / batch_size,
+                                     validation_steps=6 * len(validation_samples) / batch_size,
                                      epochs=30, callbacks=[checkpoint], verbose=2)  # 1 gives more data than 2
 
 # model.save(output_path + 'model.h5')
